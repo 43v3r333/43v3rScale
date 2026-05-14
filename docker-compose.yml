@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # App Database
   db:
     image: postgres:16
     volumes:
@@ -54,6 +53,14 @@ services:
       - "3000:3000"
     depends_on:
       - backend
+
+  solana-service:
+    build: ./solana-service
+    environment:
+      - SOLANA_RPC_URL=https://api.devnet.solana.com
+      - PORT=3001
+    ports:
+      - "3001:3001"
 
   # Label Studio
   ls_db:
