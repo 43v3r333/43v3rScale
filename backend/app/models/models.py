@@ -21,9 +21,22 @@ class Annotator(SQLModel, table=True):
     name: str
     email: str = Field(unique=True)
     skill_level: str = "beginner"
+    solana_address: Optional[str] = None
+    high_accuracy_count: int = Field(default=0)
+    sbt_minted: bool = Field(default=False)
 
 class Wallet(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     address: str = Field(unique=True)
     label: str
     balance: float = 0.0
+
+class TaskResult(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id")
+    external_task_id: int
+    data: str # JSON string of result
+    annotator_id: Optional[int] = Field(default=None, foreign_key="annotator.id")
+    status: str = Field(default="pending") # pending, approved, rejected
+    accuracy: float = Field(default=0.0)
+    created_at: datetime = Field(default_factory=datetime.utcnow)

@@ -34,3 +34,8 @@ def register(email: str, password: str, session: Session = Depends(get_session))
     session.commit()
     session.refresh(user)
     return {"message": "User created successfully"}
+
+@router.get("/label-studio-token")
+def get_ls_token(user: User = Depends(lambda: User(email="admin@example.com"))): # Placeholder for actual auth check
+    # In a real app, this would return the user's specific LS token or a global one if proxied
+    return {"token": "ls_super_token"}
