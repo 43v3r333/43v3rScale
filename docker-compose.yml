@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # App Database
   db:
     image: postgres:16
     volumes:
@@ -54,5 +55,64 @@ services:
     depends_on:
       - backend
 
+  # Label Studio
+  ls_db:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=ls_user
+      - POSTGRES_PASSWORD=ls_pass
+      - POSTGRES_DB=label_studio
+    volumes:
+      - ls_postgres_data:/var/lib/postgresql/data/
+
+  label-studio:
+    image: heartexlabs/label-studio:latest
+    ports:
+      - "8080:8080"
+    depends_on:
+      - ls_db
+    environment:
+      - DJANGO_DB=default
+      - POSTGRES_NAME=label_studio
+      - POSTGRES_USER=ls_user
+      - POSTGRES_PASSWORD=ls_pass
+      - POSTGRES_HOST=ls_db
+      - POSTGRES_PORT=5432
+      - LABEL_STUDIO_AUTH_TOKEN=ls_super_token
+    volumes:
+      - ls_data:/label-studio/data
+
+  # CVAT
+  cvat_db:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=cvat_user
+      - POSTGRES_PASSWORD=cvat_pass
+      - POSTGRES_DB=cvat
+    volumes:
+      - cvat_postgres_data:/var/lib/postgresql/data/
+
+  cvat_redis:
+    image: redis:7
+
+  cvat:
+    image: cvat/server:latest
+    ports:
+      - "8081:8080"
+    depends_on:
+      - cvat_db
+      - cvat_redis
+    environment:
+      - CVAT_POSTGRES_HOST=cvat_db
+      - CVAT_POSTGRES_USER=cvat_user
+      - CVAT_POSTGRES_PASSWORD=cvat_pass
+      - CVAT_REDIS_HOST=cvat_redis
+    volumes:
+      - cvat_data:/home/django/data
+
 volumes:
   postgres_data:
+  ls_postgres_data:
+  ls_data:
+  cvat_postgres_data:
+  cvat_data:

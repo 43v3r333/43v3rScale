@@ -27,3 +27,11 @@ class Wallet(SQLModel, table=True):
     address: str = Field(unique=True)
     label: str
     balance: float = 0.0
+
+class TaskResult(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id")
+    external_task_id: int
+    data: str # JSON string of result
+    annotator_id: Optional[int] = Field(default=None, foreign_key="annotator.id")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
