@@ -6,8 +6,10 @@ from enum import Enum
 class TaskStatus(str, Enum):
     PENDING = "pending"
     AI_DRAFTED = "ai_drafted"
+    ASSIGNED = "assigned"
     HUMAN_REVIEWED = "human_reviewed"
     CONSENSUS_REACHED = "consensus_reached"
+    ESCALATED = "escalated"
     FINALIZED = "finalized"
     REJECTED = "rejected"
 
@@ -22,6 +24,7 @@ class Project(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     description: Optional[str] = None
+    redundancy_count: int = Field(default=3) # Workers per task
     owner_id: int = Field(foreign_key="user.id")
     owner: User = Relationship(back_populates="projects")
 
@@ -35,6 +38,7 @@ class Annotator(SQLModel, table=True):
     consensus_score: float = Field(default=0.0)
     tasks_completed: int = Field(default=0)
     wallets: List["WorkerWallet"] = Relationship(back_populates="annotator")
+    assignments: List["Assignment"] = Relationship(back_populates="annotator")
 
 class WorkerWallet(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -43,29 +47,33 @@ class WorkerWallet(SQLModel, table=True):
     is_primary: bool = True
     annotator: Annotator = Relationship(back_populates="wallets")
 
-class WorkerReputation(SQLModel, table=True):
+class TaskResult(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id")
+    external_task_id: int
+    data: str # JSON string (original or AI drafted)
+    status: TaskStatus = Field(default=TaskStatus.PENDING)
+    accuracy: float = Field(default=0.0)
+    final_result: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    assignments: List["Assignment"] = Relationship(back_populates="task")
+
+class Assignment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    task_id: int = Field(foreign_key="taskresult.id")
     annotator_id: int = Field(foreign_key="annotator.id")
-    accuracy_history: str # JSON list
-    expert_status: bool = False
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    label_data: Optional[str] = None # Worker's submission
+    status: str = Field(default="assigned") # assigned, submitted
+    submitted_at: Optional[datetime] = None
+    task: TaskResult = Relationship(back_populates="assignments")
+    annotator: Annotator = Relationship(back_populates="assignments")
 
 class TaskConsensus(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     task_id: int = Field(foreign_key="taskresult.id")
     agreement_count: int = Field(default=0)
     consensus_reached: bool = False
-    final_result: Optional[str] = None # Final JSON result
-
-class TaskResult(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    project_id: int = Field(foreign_key="project.id")
-    external_task_id: int
-    data: str # JSON string
-    annotator_id: Optional[int] = Field(default=None, foreign_key="annotator.id")
-    status: TaskStatus = Field(default=TaskStatus.PENDING)
-    accuracy: float = Field(default=0.0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    escalated: bool = False
 
 class Wallet(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

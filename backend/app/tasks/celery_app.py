@@ -20,3 +20,17 @@ def check_milestone(annotator_id: int):
     # Logic to check if 100 high-accuracy tasks reached
     # httpx.post("http://solana-service:3001/mint-sbt", json={"workerAddress": addr})
     pass
+
+@celery_app.task
+def process_payment(task_id: int):
+    # PaymentWorker Logic
+    # 1. Fetch task and worker addresses from assignments
+    # 2. Call solana-service (which now interacts with Anchor program)
+    import httpx
+    try:
+        httpx.post("http://solana-service:3001/pay", json={
+            "taskId": task_id,
+            "useAnchor": True
+        })
+    except Exception as e:
+        print(f"Payment worker failed for task {task_id}: {e}")
