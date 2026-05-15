@@ -24,6 +24,15 @@ class Annotator(SQLModel, table=True):
     solana_address: Optional[str] = None
     high_accuracy_count: int = Field(default=0)
     sbt_minted: bool = Field(default=False)
+    consensus_score: float = Field(default=0.0)
+    tasks_completed: int = Field(default=0)
+
+class WorkerReputation(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    annotator_id: int = Field(foreign_key="annotator.id")
+    accuracy_history: str # JSON list of historical scores
+    expert_status: bool = False
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 class Wallet(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -37,6 +46,7 @@ class TaskResult(SQLModel, table=True):
     external_task_id: int
     data: str # JSON string of result
     annotator_id: Optional[int] = Field(default=None, foreign_key="annotator.id")
-    status: str = Field(default="pending") # pending, approved, rejected
+    status: str = Field(default="pending") # pending, approved, rejected, ai_drafted, human_reviewed
     accuracy: float = Field(default=0.0)
+    is_consensus: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
