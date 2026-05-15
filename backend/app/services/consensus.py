@@ -1,51 +1,56 @@
+import json
+from typing import List
 from sqlmodel import Session, select
-from app.models.models import TaskResult, TaskConsensus, TaskStatus, WorkerWallet
+from app.models.models import TaskResult, TaskConsensus, TaskStatus, Assignment, Project
 from app.core.db import engine
-import httpx
+from app.services.inference_agent import inference_agent
 
-class ConsensusService:
+class ConsensusEngine:
     @staticmethod
-    async def process_new_label(task_id: int, result_data: str):
+    def calculate_iou(poly1: List[dict], poly2: List[dict]) -> float:
+        """Mock IoU for polygons (simplification for scaffolding)"""
+        # In a real app, use Shapely: Polygon(p1).intersection(Polygon(p2)).area / union.area
+        return 0.95 # Mock high agreement
+
+    @staticmethod
+    def calculate_correlation(rank1: List[int], rank2: List[int]) -> float:
+        """Mock ranking correlation"""
+        return 0.98 # Mock high correlation
+
+    @staticmethod
+    async def run_consensus(task_id: int):
         with Session(engine) as session:
-            # Check for existing consensus record
-            consensus = session.exec(
-                select(TaskConsensus).where(TaskConsensus.task_id == task_id)
-            ).first()
+            task = session.get(TaskResult, task_id)
+            project = session.get(Project, task.project_id)
+            assignments = session.exec(
+                select(Assignment).where(Assignment.task_id == task_id, Assignment.status == "submitted")
+            ).all()
 
-            if not consensus:
-                consensus = TaskConsensus(task_id=task_id, agreement_count=1)
-                session.add(consensus)
+            if len(assignments) < project.redundancy_count:
+                return # Not enough labels yet
+
+            # Logic to compare labels
+            # For simplicity, we assume if 2 out of 3 agree (IoU > 0.8), we have consensus
+            agreement_met = True # Simplified check
+
+            if agreement_met:
+                task.status = TaskStatus.CONSENSUS_REACHED
+                task.final_result = assignments[0].label_data # Use first as representative
+                session.add(task)
             else:
-                consensus.agreement_count += 1
-                if consensus.agreement_count >= 2: # Consensus threshold
-                    consensus.consensus_reached = True
-                    consensus.final_result = result_data
-
-                    # Update Task Status
-                    task = session.get(TaskResult, task_id)
-                    if task:
-                        task.status = TaskStatus.CONSENSUS_REACHED
-                        session.add(task)
-
-                        # Trigger Payment event
-                        await ConsensusService.trigger_payment(task)
+                # Escalation Hook: Trigger Gemini 3 Flash
+                task.status = TaskStatus.ESCALATED
+                tie_breaker = await inference_agent.prelabel_rlhf("Escalated: Need tie-breaker for conflicting labels")
+                task.final_result = json.dumps(tie_breaker)
+                task.status = TaskStatus.CONSENSUS_REACHED # Resolved by AI
+                session.add(task)
 
             session.commit()
 
-    @staticmethod
-    async def trigger_payment(task: TaskResult):
-        # Placeholder for label_finalized event -> Solana payment
-        print(f"Triggering payment for task {task.id}")
-        # In a real scenario, fetch worker wallet and call solana-service
-        task.status = TaskStatus.FINALIZED
-        # Simulated call to solana-service
-        try:
-            async with httpx.AsyncClient() as client:
-                await client.post("http://solana-service:3001/pay", json={
-                    "workerAddress": "HN7c...6v9p",
-                    "amount": 0.05
-                })
-        except Exception as e:
-            print(f"Payment simulation failed: {e}")
+            if task.status == TaskStatus.CONSENSUS_REACHED:
+                from app.tasks.celery_app import process_payment
+                process_payment.delay(task.id)
 
-consensus_service = ConsensusService()
+consensus_engine = ConsensusEngine()
+
+consensus_service = ConsensusEngine()
