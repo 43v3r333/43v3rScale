@@ -1,23 +1,18 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlmodel import Session
 from app.core.db import get_session
-from app.models.models import TaskResult, TaskStatus, Annotator
-from app.services.consensus import consensus_service
-import json
+from app.services.pipeline import data_pipeline
 
 router = APIRouter()
 
 @router.post("/label-studio")
-async def label_studio_webhook(payload: dict, session: Session = Depends(get_session)):
-    action = payload.get("action")
-    if action in ["ANNOTATION_CREATED", "ANNOTATION_UPDATED"]:
-        task_data = payload.get("task", {})
-        annotation = payload.get("annotation", {})
+async def label_studio_webhook(request: Request, session: Session = Depends(get_session)):
+    payload = await request.json()
+    await data_pipeline.process_label_studio(payload, session)
+    return {"status": "received"}
 
-        # In a real app, find task by external_id
-        # For demo, assuming task_id=1
-        task_id = 1
-
-        await consensus_service.process_new_label(task_id, json.dumps(annotation.get("result")))
-
-    return {"status": "success"}
+@router.post("/cvat")
+async def cvat_webhook(request: Request, session: Session = Depends(get_session)):
+    payload = await request.json()
+    await data_pipeline.process_cvat(payload, session)
+    return {"status": "received"}
