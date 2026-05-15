@@ -14,18 +14,26 @@ async def upload_task(file: UploadFile = File(...), session: Session = Depends(g
     content = await file.read()
     modal = router_service.identify_modal(file.filename)
 
-    prelabel_data = {}
+    prelabel = {}
     if modal == "CVAT":
-        prelabel_data = await inference_agent.prelabel_cv(content)
+        prelabel = await inference_agent.prelabel_cv(content)
     else:
         text_content = content.decode('utf-8', errors='ignore')
-        prelabel_data = await inference_agent.prelabel_rlhf(text_content)
+        prelabel = await inference_agent.prelabel_rlhf(text_content)
+
+    confidence = prelabel.get("confidence", 0.0)
+
+    if confidence >= 0.88:
+        status = TaskStatus.COMPLETED
+    else:
+        status = TaskStatus.AI_UNCERTAIN
 
     task = TaskResult(
         project_id=1,
         external_task_id=123,
-        data=str(prelabel_data),
-        status=TaskStatus.AI_DRAFTED
+        data=str(prelabel),
+        status=status,
+        confidence=confidence
     )
     session.add(task)
     session.commit()
@@ -35,7 +43,7 @@ async def upload_task(file: UploadFile = File(...), session: Session = Depends(g
         "task_id": task.id,
         "modal": modal,
         "status": task.status,
-        "prelabel": prelabel_data
+        "confidence": confidence
     }
 
 async def task_event_generator():

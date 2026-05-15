@@ -4,15 +4,12 @@ from datetime import datetime
 from enum import Enum
 
 class TaskStatus(str, Enum):
-    PENDING = "pending"
-    AI_DRAFTED = "ai_drafted"
+    AI_UNCERTAIN = "ai_uncertain"
     ASSIGNED = "assigned"
-    HUMAN_REVIEWED = "human_reviewed"
     AWAITING_CONSENSUS = "awaiting_consensus"
-    CONSENSUS_REACHED = "consensus_reached"
-    VERIFIED = "verified"
-    ESCALATED = "escalated"
-    FINALIZED = "finalized"
+    COMPLETED = "completed"
+    ARBITRATION = "arbitration"
+    PENDING = "pending"
     REJECTED = "rejected"
 
 class User(SQLModel, table=True):
@@ -35,11 +32,8 @@ class Annotator(SQLModel, table=True):
     name: str
     email: str = Field(unique=True)
     skill_level: str = "beginner"
-    high_accuracy_count: int = Field(default=0)
-    sbt_minted: bool = Field(default=False)
     consensus_score: float = Field(default=0.0)
     tasks_completed: int = Field(default=0)
-    verified_tasks_count: int = Field(default=0)
     wallets: List["WorkerWallet"] = Relationship(back_populates="annotator")
     assignments: List["Assignment"] = Relationship(back_populates="annotator")
 
@@ -56,7 +50,8 @@ class TaskResult(SQLModel, table=True):
     external_task_id: int
     data: str # JSON string
     status: TaskStatus = Field(default=TaskStatus.PENDING)
-    accuracy: float = Field(default=0.0)
+    confidence: float = Field(default=0.0)
+    tx_signature: Optional[str] = None
     final_result: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     assignments: List["Assignment"] = Relationship(back_populates="task")
@@ -65,18 +60,12 @@ class Assignment(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     task_id: int = Field(foreign_key="taskresult.id")
     annotator_id: int = Field(foreign_key="annotator.id")
-    label_data: Optional[str] = None # Our "annotations" storage
-    status: str = Field(default="assigned")
+    raw_data: Optional[str] = None
+    consensus_score: float = Field(default=0.0)
+    status: str = Field(default="pending") # PENDING, REJECTED, VERIFIED
     submitted_at: Optional[datetime] = None
     task: TaskResult = Relationship(back_populates="assignments")
     annotator: Annotator = Relationship(back_populates="assignments")
-
-class TaskConsensus(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    task_id: int = Field(foreign_key="taskresult.id")
-    agreement_count: int = Field(default=0)
-    consensus_reached: bool = False
-    escalated: bool = False
 
 class Wallet(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
