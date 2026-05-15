@@ -10,6 +10,7 @@ class TaskStatus(str, Enum):
     HUMAN_REVIEWED = "human_reviewed"
     AWAITING_CONSENSUS = "awaiting_consensus"
     CONSENSUS_REACHED = "consensus_reached"
+    VERIFIED = "verified"
     ESCALATED = "escalated"
     FINALIZED = "finalized"
     REJECTED = "rejected"
@@ -38,6 +39,7 @@ class Annotator(SQLModel, table=True):
     sbt_minted: bool = Field(default=False)
     consensus_score: float = Field(default=0.0)
     tasks_completed: int = Field(default=0)
+    verified_tasks_count: int = Field(default=0)
     wallets: List["WorkerWallet"] = Relationship(back_populates="annotator")
     assignments: List["Assignment"] = Relationship(back_populates="annotator")
 
@@ -63,7 +65,7 @@ class Assignment(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     task_id: int = Field(foreign_key="taskresult.id")
     annotator_id: int = Field(foreign_key="annotator.id")
-    label_data: Optional[str] = None
+    label_data: Optional[str] = None # Our "annotations" storage
     status: str = Field(default="assigned")
     submitted_at: Optional[datetime] = None
     task: TaskResult = Relationship(back_populates="assignments")

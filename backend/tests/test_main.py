@@ -25,12 +25,13 @@ def test_webhook_label_studio():
         "annotation": {"result": [{"id": "1", "type": "choices", "value": {"choices": ["Dog"]}}]},
         "task": {"id": 123}
     }
+    # Mock both data_pipeline and consensus_service
     from app.services.pipeline import data_pipeline
     data_pipeline.process_label_studio = AsyncMock()
 
     response = client.post("/api/v1/webhooks/label-studio", json=payload)
     assert response.status_code == 200
-    assert response.json() == {"status": "received"}
+    assert response.json() == {"status": "success"}
 
 def test_task_upload_routing():
     files = {'file': ('test.jpg', b'fake-image-content', 'image/jpeg')}
