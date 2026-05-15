@@ -1,56 +1,74 @@
 import json
+from difflib import SequenceMatcher
 from typing import List
 from sqlmodel import Session, select
-from app.models.models import TaskResult, TaskConsensus, TaskStatus, Assignment, Project
+from app.models.models import TaskResult, TaskStatus, Assignment, Project, WorkerWallet
 from app.core.db import engine
-from app.services.inference_agent import inference_agent
 
-class ConsensusEngine:
+class ConsensusService:
     @staticmethod
-    def calculate_iou(poly1: List[dict], poly2: List[dict]) -> float:
-        """Mock IoU for polygons (simplification for scaffolding)"""
-        # In a real app, use Shapely: Polygon(p1).intersection(Polygon(p2)).area / union.area
-        return 0.95 # Mock high agreement
+    def calculate_iou(box1: dict, box2: dict) -> float:
+        """Calculate IoU for bounding boxes"""
+        x_left = max(box1['x'], box2['x'])
+        y_top = max(box1['y'], box2['y'])
+        x_right = min(box1['x'] + box1['w'], box2['x'] + box2['w'])
+        y_bottom = min(box1['y'] + box1['h'], box2['y'] + box2['h'])
+
+        if x_right < x_left or y_bottom < y_top:
+            return 0.0
+
+        intersection_area = (x_right - x_left) * (y_bottom - y_top)
+        area1 = box1['w'] * box1['h']
+        area2 = box2['w'] * box2['h']
+        union_area = area1 + area2 - intersection_area
+
+        return intersection_area / union_area if union_area > 0 else 0
 
     @staticmethod
-    def calculate_correlation(rank1: List[int], rank2: List[int]) -> float:
-        """Mock ranking correlation"""
-        return 0.98 # Mock high correlation
+    def calculate_similarity(str1: str, str2: str) -> float:
+        """Calculate string similarity using SequenceMatcher"""
+        return SequenceMatcher(None, str1, str2).ratio()
 
-    @staticmethod
-    async def run_consensus(task_id: int):
+    async def evaluate_consensus(self, task_id: int):
         with Session(engine) as session:
             task = session.get(TaskResult, task_id)
-            project = session.get(Project, task.project_id)
-            assignments = session.exec(
-                select(Assignment).where(Assignment.task_id == task_id, Assignment.status == "submitted")
-            ).all()
+            assignments = [a for a in task.assignments if a.status == "submitted"]
 
-            if len(assignments) < project.redundancy_count:
-                return # Not enough labels yet
+            if len(assignments) < 3:
+                return
 
-            # Logic to compare labels
-            # For simplicity, we assume if 2 out of 3 agree (IoU > 0.8), we have consensus
-            agreement_met = True # Simplified check
+            # Pairwise consensus check
+            scores = []
+            for i in range(len(assignments)):
+                for j in range(i + 1, len(assignments)):
+                    # For demo, assuming data is a simple string or box
+                    scores.append(self.calculate_similarity(assignments[i].label_data, assignments[j].label_data))
 
-            if agreement_met:
-                task.status = TaskStatus.CONSENSUS_REACHED
-                task.final_result = assignments[0].label_data # Use first as representative
+            avg_score = sum(scores) / len(scores) if scores else 0
+
+            if avg_score >= 0.90:
+                task.status = TaskStatus.FINALIZED
                 session.add(task)
-            else:
-                # Escalation Hook: Trigger Gemini 3 Flash
-                task.status = TaskStatus.ESCALATED
-                tie_breaker = await inference_agent.prelabel_rlhf("Escalated: Need tie-breaker for conflicting labels")
-                task.final_result = json.dumps(tie_breaker)
-                task.status = TaskStatus.CONSENSUS_REACHED # Resolved by AI
-                session.add(task)
+                session.commit()
+                await self.trigger_payout(task, assignments)
 
-            session.commit()
+    async def trigger_payout(self, task: TaskResult, assignments: List[Assignment]):
+        print(f"Consensus reached for task {task.id}. Triggering Solana payouts...")
+        # Placeholder for solana-py integration logic
+        pass
 
-            if task.status == TaskStatus.CONSENSUS_REACHED:
-                from app.tasks.celery_app import process_payment
-                process_payment.delay(task.id)
+consensus_service = ConsensusService()
 
-consensus_engine = ConsensusEngine()
+    async def trigger_payout_on_chain(self, worker_pubkey: str, amount_usdc: int):
+        from solana.rpc.async_api import AsyncClient
+        from solana.transaction import Transaction
+        from solana.keypair import Keypair
+        import base58
 
-consensus_service = ConsensusEngine()
+        # In a real app, load authority_keypair from env
+        # authority_keypair = Keypair.from_secret_key(base58.b58decode(os.getenv("SOLANA_PRIVATE_KEY")))
+
+        print(f"Executing on-chain payout to {worker_pubkey} for {amount_usdc} micro-USDC")
+        # Integration logic to call Anchor program 'escrow_payout'
+        # async with AsyncClient("https://api.devnet.solana.com") as client:
+        #    ...
