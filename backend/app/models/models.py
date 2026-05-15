@@ -8,6 +8,7 @@ class TaskStatus(str, Enum):
     AI_DRAFTED = "ai_drafted"
     ASSIGNED = "assigned"
     HUMAN_REVIEWED = "human_reviewed"
+    AWAITING_CONSENSUS = "awaiting_consensus"
     CONSENSUS_REACHED = "consensus_reached"
     ESCALATED = "escalated"
     FINALIZED = "finalized"
@@ -24,7 +25,7 @@ class Project(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     description: Optional[str] = None
-    redundancy_count: int = Field(default=3) # Workers per task
+    redundancy_count: int = Field(default=3)
     owner_id: int = Field(foreign_key="user.id")
     owner: User = Relationship(back_populates="projects")
 
@@ -51,7 +52,7 @@ class TaskResult(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     project_id: int = Field(foreign_key="project.id")
     external_task_id: int
-    data: str # JSON string (original or AI drafted)
+    data: str # JSON string
     status: TaskStatus = Field(default=TaskStatus.PENDING)
     accuracy: float = Field(default=0.0)
     final_result: Optional[str] = None
@@ -62,8 +63,8 @@ class Assignment(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     task_id: int = Field(foreign_key="taskresult.id")
     annotator_id: int = Field(foreign_key="annotator.id")
-    label_data: Optional[str] = None # Worker's submission
-    status: str = Field(default="assigned") # assigned, submitted
+    label_data: Optional[str] = None
+    status: str = Field(default="assigned")
     submitted_at: Optional[datetime] = None
     task: TaskResult = Relationship(back_populates="assignments")
     annotator: Annotator = Relationship(back_populates="assignments")
