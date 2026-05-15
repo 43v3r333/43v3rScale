@@ -32,8 +32,12 @@ class ConsensusService:
     async def run_consensus_check(self, task_id: int):
         with Session(engine) as session:
             task = session.get(TaskResult, task_id)
+            if not task:
+                return
+
             assignments = [a for a in task.assignments if a.status == "submitted"]
 
+            # Supporting multiple worker assignments (redundancy threshold)
             if len(assignments) < 3:
                 return
 
@@ -52,7 +56,8 @@ class ConsensusService:
 
             avg_agreement = sum(scores) / len(scores) if scores else 0
 
-            if avg_agreement >= 0.90:
+            # Triggering payout when agreement exceeds 95%
+            if avg_agreement >= 0.95:
                 task.status = TaskStatus.VERIFIED
                 task.accuracy = avg_agreement
 
@@ -63,14 +68,12 @@ class ConsensusService:
 
                 session.add(task)
                 session.commit()
-                await self.execute_oracle_payout(task_id)
+                # Mock Solana Payout Trigger
+                await self.trigger_solana_payout(task_id, avg_agreement)
 
-    async def execute_oracle_payout(self, task_id: int):
-        import os
-        oracle_key = os.getenv("SOLANA_ORACLE_KEY")
-        if not oracle_key:
-            print(f"[MOCK] Simulating on-chain payout for task {task_id}...")
-            return
-        # Real solana-py integration would go here
+    async def trigger_solana_payout(self, task_id: int, score: float):
+        print(f"[SOLANA PAYOUT] Task {task_id} verified with {score*100:.1f}% consensus. Transferring 0.05 USDC...")
+        # Simulating solana-service call
+        # httpx.post("http://solana-service:3001/pay", ...)
 
 consensus_service = ConsensusService()
