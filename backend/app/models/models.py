@@ -1,6 +1,15 @@
 from sqlmodel import SQLModel, Field, Relationship
 from typing import List, Optional
 from datetime import datetime
+from enum import Enum
+
+class TaskStatus(str, Enum):
+    PENDING = "pending"
+    AI_DRAFTED = "ai_drafted"
+    HUMAN_REVIEWED = "human_reviewed"
+    CONSENSUS_REACHED = "consensus_reached"
+    FINALIZED = "finalized"
+    REJECTED = "rejected"
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -21,32 +30,45 @@ class Annotator(SQLModel, table=True):
     name: str
     email: str = Field(unique=True)
     skill_level: str = "beginner"
-    solana_address: Optional[str] = None
     high_accuracy_count: int = Field(default=0)
     sbt_minted: bool = Field(default=False)
     consensus_score: float = Field(default=0.0)
     tasks_completed: int = Field(default=0)
+    wallets: List["WorkerWallet"] = Relationship(back_populates="annotator")
+
+class WorkerWallet(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    annotator_id: int = Field(foreign_key="annotator.id")
+    public_key: str = Field(unique=True)
+    is_primary: bool = True
+    annotator: Annotator = Relationship(back_populates="wallets")
 
 class WorkerReputation(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     annotator_id: int = Field(foreign_key="annotator.id")
-    accuracy_history: str # JSON list of historical scores
+    accuracy_history: str # JSON list
     expert_status: bool = False
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class TaskConsensus(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    task_id: int = Field(foreign_key="taskresult.id")
+    agreement_count: int = Field(default=0)
+    consensus_reached: bool = False
+    final_result: Optional[str] = None # Final JSON result
+
+class TaskResult(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id")
+    external_task_id: int
+    data: str # JSON string
+    annotator_id: Optional[int] = Field(default=None, foreign_key="annotator.id")
+    status: TaskStatus = Field(default=TaskStatus.PENDING)
+    accuracy: float = Field(default=0.0)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class Wallet(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     address: str = Field(unique=True)
     label: str
     balance: float = 0.0
-
-class TaskResult(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    project_id: int = Field(foreign_key="project.id")
-    external_task_id: int
-    data: str # JSON string of result
-    annotator_id: Optional[int] = Field(default=None, foreign_key="annotator.id")
-    status: str = Field(default="pending") # pending, approved, rejected, ai_drafted, human_reviewed
-    accuracy: float = Field(default=0.0)
-    is_consensus: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow)

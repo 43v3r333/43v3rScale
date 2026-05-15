@@ -1,17 +1,23 @@
 import mimetypes
+import httpx
+from typing import Optional
 
-class TaskRouter:
+class RouterService:
     @staticmethod
-    def route_task(filename: str) -> str:
+    def identify_modal(filename: str) -> str:
         mime_type, _ = mimetypes.guess_type(filename)
+        ext = filename.split('.')[-1].lower()
 
-        if mime_type:
-            if mime_type.startswith('image/') or mime_type.startswith('video/'):
-                return "CVAT"
-            elif mime_type == 'application/json' or mime_type.startswith('text/'):
-                return "Label Studio"
-
-        # Default fallback
+        if ext in ['mp4', 'pcd'] or (mime_type and mime_type.startswith('image/')):
+            return "CVAT"
+        if ext in ['json', 'txt']:
+            return "Label Studio"
         return "Label Studio"
 
-task_router = TaskRouter()
+    @staticmethod
+    async def create_external_project(modal: str, name: str) -> Optional[str]:
+        # Placeholder for external API calls to CVAT/Label Studio
+        print(f"Creating project {name} in {modal}")
+        return f"ext_{modal.lower()}_{name}"
+
+router_service = RouterService()
