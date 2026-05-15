@@ -16,3 +16,11 @@ async def cvat_webhook(request: Request, session: Session = Depends(get_session)
     payload = await request.json()
     await data_pipeline.process_cvat(payload, session)
     return {"status": "received"}
+
+@router.post("/engine-callback")
+async def engine_callback(payload: dict, session: Session = Depends(get_session)):
+    # Extract data from Label Studio / CVAT callback
+    # For now, we mock the submission processing
+    task_id = payload.get("task_id", 1)
+    await consensus_service.evaluate_consensus(task_id)
+    return {"status": "processing"}

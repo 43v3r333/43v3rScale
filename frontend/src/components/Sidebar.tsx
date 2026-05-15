@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { LayoutDashboard, Users, FolderKanban, Wallet, Briefcase, Camera } from 'lucide-react';
+import { LayoutDashboard, Users, FolderKanban, Wallet, Briefcase, Camera, Hammer } from 'lucide-react';
 
 const Sidebar = () => {
   return (
@@ -8,6 +8,9 @@ const Sidebar = () => {
         43v3rScale
       </div>
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        <div className="pb-2 px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          Admin
+        </div>
         <Link href="/" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800">
           <LayoutDashboard size={20} />
           <span>Dashboard</span>
@@ -24,6 +27,7 @@ const Sidebar = () => {
           <Wallet size={20} />
           <span>Wallets</span>
         </Link>
+
         <div className="pt-4 pb-2 px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
           Workforce
         </div>
@@ -34,6 +38,14 @@ const Sidebar = () => {
         <Link href="/cvat" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800">
           <Camera size={20} />
           <span>CVAT</span>
+        </Link>
+
+        <div className="pt-4 pb-2 px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          Worker
+        </div>
+        <Link href="/worker" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800">
+          <Hammer size={20} />
+          <span>Worker Portal</span>
         </Link>
       </nav>
     </div>

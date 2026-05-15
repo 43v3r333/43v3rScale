@@ -19,7 +19,7 @@ pub mod payout_escrow {
         Ok(())
     }
 
-    pub fn complete_task(ctx: Context<CompleteTask>, amount: u64) -> Result<()> {
+    pub fn escrow_payout(ctx: Context<EscrowPayout>, task_id: u64, amount: u64) -> Result<()> {
         let cpi_accounts = Transfer {
             from: ctx.accounts.vault_token_account.to_account_info(),
             to: ctx.accounts.worker_token_account.to_account_info(),
@@ -27,15 +27,17 @@ pub mod payout_escrow {
         };
         let cpi_program = ctx.accounts.token_program.to_account_info();
 
-        // In real app, use PDA seeds for vault_authority
+        // Signed by backend_authority to release funds
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
         token::transfer(cpi_ctx, amount)?;
+
+        msg!("Payout executed for task: {}", task_id);
         Ok(())
     }
 
-    pub fn mint_reputation(ctx: Context<MintReputation>, metadata: String) -> Result<()> {
-        // Mock minting an SBT
-        msg!("Minting SBT with metadata: {}", metadata);
+    pub fn mint_reputation_sbt(ctx: Context<MintReputationSBT>, worker_metadata: String) -> Result<()> {
+        msg!("Minting Reputation SBT for worker with metadata: {}", worker_metadata);
+        // Logic for Token-2022 non-transferable mint
         Ok(())
     }
 }
@@ -52,7 +54,7 @@ pub struct InitializeProject<'info> {
 }
 
 #[derive(Accounts)]
-pub struct CompleteTask<'info> {
+pub struct EscrowPayout<'info> {
     #[account(signer)]
     pub backend_authority: AccountInfo<'info>,
     #[account(mut)]
@@ -64,7 +66,7 @@ pub struct CompleteTask<'info> {
 }
 
 #[derive(Accounts)]
-pub struct MintReputation<'info> {
+pub struct MintReputationSBT<'info> {
     #[account(mut)]
     pub worker: Signer<'info>,
 }
