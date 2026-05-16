@@ -1,9 +1,9 @@
-from fastapi import APIRouter, UploadFile, File, Depends
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlmodel import Session
 from app.core.db import get_session
 from app.services.router import router_service
 from app.services.inference_agent import inference_agent
-from app.models.models import TaskResult, TaskStatus
+from app.models.models import TaskResult, TaskStatus, Project
 from fastapi.responses import StreamingResponse
 import asyncio
 
@@ -11,6 +11,11 @@ router = APIRouter()
 
 @router.post("/upload")
 async def upload_task(file: UploadFile = File(...), session: Session = Depends(get_session)):
+    # Fetch Project (Mocked ID=1)
+    project = session.get(Project, 1)
+    if not project or project.balance_usdc < 0.15: # 0.05 * 3 workers
+        raise HTTPException(status_code=402, detail="Insufficient project funding in vault")
+
     content = await file.read()
     modal = router_service.identify_modal(file.filename)
 

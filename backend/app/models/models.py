@@ -11,6 +11,7 @@ class TaskStatus(str, Enum):
     ARBITRATION = "arbitration"
     PENDING = "pending"
     REJECTED = "rejected"
+    VERIFIED = "verified"
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -24,6 +25,9 @@ class Project(SQLModel, table=True):
     name: str
     description: Optional[str] = None
     redundancy_count: int = Field(default=3)
+    vault_address: Optional[str] = None
+    balance_usdc: float = Field(default=0.0)
+    funding_active: bool = Field(default=False)
     owner_id: int = Field(foreign_key="user.id")
     owner: User = Relationship(back_populates="projects")
 
@@ -34,6 +38,7 @@ class Annotator(SQLModel, table=True):
     skill_level: str = "beginner"
     consensus_score: float = Field(default=0.0)
     tasks_completed: int = Field(default=0)
+    verified_tasks_count: int = Field(default=0)
     wallets: List["WorkerWallet"] = Relationship(back_populates="annotator")
     assignments: List["Assignment"] = Relationship(back_populates="annotator")
 
@@ -43,6 +48,14 @@ class WorkerWallet(SQLModel, table=True):
     public_key: str = Field(unique=True)
     is_primary: bool = True
     annotator: Annotator = Relationship(back_populates="wallets")
+
+class TransactionRecord(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tx_hash: str = Field(unique=True)
+    amount: float
+    type: str # DEPOSIT, PAYOUT
+    project_id: Optional[int] = Field(default=None, foreign_key="project.id")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 class TaskResult(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -62,7 +75,7 @@ class Assignment(SQLModel, table=True):
     annotator_id: int = Field(foreign_key="annotator.id")
     raw_data: Optional[str] = None
     consensus_score: float = Field(default=0.0)
-    status: str = Field(default="pending") # PENDING, REJECTED, VERIFIED
+    status: str = Field(default="pending")
     submitted_at: Optional[datetime] = None
     task: TaskResult = Relationship(back_populates="assignments")
     annotator: Annotator = Relationship(back_populates="assignments")
