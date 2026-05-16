@@ -131,7 +131,7 @@ services:
       - CVAT_REDIS_INMEM_HOST=cvat_redis
       - CVAT_REDIS_INMEM_PORT=6379
       - SMOKESCREEN_OPTS=
-      - ALLOWED_HOSTS=*
+      - ALLOWED_HOSTS=localhost,127.0.0.1,bookish-doodle-974j66p5gwrrc9x44-3000.app.github.dev
     volumes:
       - cvat_data:/home/django/data
 
