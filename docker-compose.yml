@@ -48,11 +48,12 @@ services:
       - ./frontend:/frontend
       - /frontend/node_modules
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+      - NEXT_PUBLIC_API_URL=/api/v1
     ports:
       - "3000:3000"
     depends_on:
       - backend
+      - cvat
 
   solana-service:
     build: ./solana-service
@@ -74,20 +75,30 @@ services:
 
   label-studio:
     image: heartexlabs/label-studio:latest
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     depends_on:
       - ls_db
     environment:
       - DJANGO_DB=default
-      - POSTGRES_NAME=label_studio
-      - POSTGRES_USER=ls_user
-      - POSTGRES_PASSWORD=ls_pass
-      - POSTGRES_HOST=ls_db
-      - POSTGRES_PORT=5432
+      - POSTGRE_NAME=label_studio
+      - POSTGRE_USER=ls_user
+      - POSTGRE_PASSWORD=ls_pass
+      - POSTGRE_HOST=ls_db
+      - POSTGRE_PORT=5432
       - LABEL_STUDIO_AUTH_TOKEN=ls_super_token
     volumes:
       - ls_data:/label-studio/data
+
+  label-studio-proxy:
+    image: nginx:alpine
+    depends_on:
+      - label-studio
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./nginx/label-studio.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
 
   # CVAT
   cvat_db:
@@ -104,6 +115,7 @@ services:
 
   cvat:
     image: cvat/server:latest
+    command: ["bash", "-lc", "./backend_entrypoint.sh init && ./backend_entrypoint.sh run server"]
     ports:
       - "8081:8080"
     depends_on:
@@ -111,9 +123,15 @@ services:
       - cvat_redis
     environment:
       - CVAT_POSTGRES_HOST=cvat_db
+      - CVAT_POSTGRES_PORT=5432
+      - CVAT_POSTGRES_NAME=cvat
       - CVAT_POSTGRES_USER=cvat_user
       - CVAT_POSTGRES_PASSWORD=cvat_pass
       - CVAT_REDIS_HOST=cvat_redis
+      - CVAT_REDIS_INMEM_HOST=cvat_redis
+      - CVAT_REDIS_INMEM_PORT=6379
+      - SMOKESCREEN_OPTS=
+      - ALLOWED_HOSTS=*
     volumes:
       - cvat_data:/home/django/data
 

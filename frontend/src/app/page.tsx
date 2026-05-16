@@ -7,7 +7,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     // Simple Polling as requested or SSE
-    const eventSource = new EventSource("http://localhost:8000/api/v1/tasks/stream");
+    const eventSource = new EventSource("/api/v1/tasks/stream");
     eventSource.onmessage = (event) => {
       console.log("New task event:", event.data);
       // Refresh task list logic
