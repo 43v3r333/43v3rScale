@@ -67,3 +67,7 @@ class OnChainSettlementService:
             session.commit()
 
 settlement_service = OnChainSettlementService()
+
+    async def mint_expert_sbt(self, annotator_id: int):
+        print(f"Minting Expert SBT for annotator {annotator_id} on Solana Devnet...")
+        # Mock anchor call: program.methods.mintReputationSbt(...)

@@ -39,6 +39,8 @@ class Annotator(SQLModel, table=True):
     consensus_score: float = Field(default=0.0)
     tasks_completed: int = Field(default=0)
     verified_tasks_count: int = Field(default=0)
+    is_qualified: bool = Field(default=False)
+    sbt_minted: bool = Field(default=False)
     wallets: List["WorkerWallet"] = Relationship(back_populates="annotator")
     assignments: List["Assignment"] = Relationship(back_populates="annotator")
 
@@ -64,6 +66,8 @@ class TaskResult(SQLModel, table=True):
     data: str # JSON string
     status: TaskStatus = Field(default=TaskStatus.PENDING)
     confidence: float = Field(default=0.0)
+    is_gold_standard: bool = Field(default=False)
+    ground_truth_data: Optional[str] = None
     tx_signature: Optional[str] = None
     final_result: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
